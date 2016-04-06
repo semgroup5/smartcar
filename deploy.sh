@@ -1,3 +1,2 @@
 #!/bin/bash
-PIIP=192.168.1.83
-scp -r /home/jpp/projects/java/smartcar pi@192.168.1.83:/home/pi
+scp -r /home/jpp/projects/java/smartcar pi@10.42.0.53:/home/pi

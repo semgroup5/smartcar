@@ -1,0 +1,12 @@
+try {
+            byte[] buffer = new byte[16];
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            //Recieve first packet
+            server.receive(packet);
+            //Use the address
+            clientAddress = packet.getAddress();
+            System.out.println( "Accepted client at address" + clientAddress.toString() );
+        } catch (IOException e) {
+            System.err.println( "Accept failed." );
+            System.exit(1);
+        }

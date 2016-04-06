@@ -5,7 +5,6 @@ import org.openkinect.freenect.*;
 
 import java.io.*;
 import java.lang.Thread;
-import java.nio.ByteBuffer;
 import java.net.*;
 
 public class Main {
@@ -13,116 +12,48 @@ public class Main {
     static InputStream in;
     static OutputStream out;
     static Boolean waiting = false;
-    static Socket client = null;
+    static ServerSocket server = null;
     public static void main(String[] args) {
         Context context = Freenect.createContext();
         Device d = context.openDevice(0);
-
-        d.setDepthFormat(DepthFormat.D11BIT);
+        Socket socket = null;
+        d.setDepthFormat(DepthFormat.REGISTERED);
         d.setVideoFormat(VideoFormat.RGB);
-
-        try{DatagramSocket socket = new DatagramSocket();}
-        catch(Exception e) {}
-
-        /*d.startVideo(new VideoHandler(){
-            @Override
-            public void onFrameReceived(FrameMode mode, ByteBuffer frame, int timestamp) {
-                sendRGB(mode, frame, timestamp);
-            }
-        });*/
-
-        d.startDepth(new DepthHandler() {
-            @Override
-            public void onFrameReceived(FrameMode mode, ByteBuffer frame, int timestamp) {
-                sendDepth(mode, frame, timestamp);
-            }
-        });
+        int port = 50001;
 
         try {
-            System.out.println("changed to yellow");
-            d.setLed(LedStatus.BLINK_YELLOW);
-            d.setTiltAngle(20.0);
-            Thread.sleep(2000);
-            System.out.println("changed to green");
-            d.setLed(LedStatus.BLINK_GREEN);
-            d.setTiltAngle(-20.0);
+            server = new ServerSocket(port);
         }
-        catch(Exception e) {}
-
-        //Server experiments
-
-        int port = 1234;
-        boolean serverUp = true;
-        ServerSocket server = null;
+        catch(Exception e) {
+            System.out.println("Couldn't create socket");
+            System.exit(1);
+        }
 
         try
         {
             System.out.println("Listening on port " + port);
-            server = new ServerSocket(1234);
+            socket = server.accept();
         }
         catch(IOException e) {
-            System.err.println("Could not listen on port: 1234.");
-            System.exit(1);
-        }
-
-
-        client = null;
-        try {
-            client = server.accept();
-            System.out.println("Accepted client");
-        } catch (IOException e) {
-            System.err.println("Accept failed.");
+            System.err.println("Could not listen on port:" + port);
             System.exit(1);
         }
 
         try {
-            in = client.getInputStream();
-            out = client.getOutputStream();
-            while( true ) {
-                if(in.read() != -1)
-                {
-                    System.out.println("Something was available");
-                    waiting=true;
 
-                }
-                Thread.sleep(1000);
-            }
-        } catch(Exception e){}
-    }
+            System.out.println( "Starting Video Stream, " );
 
-    public static void sendDepth(FrameMode mode, ByteBuffer frame, int timestamp)
-    {
-        if(waiting)
-        {
-            try {
-                waiting = false;
-                System.out.println("Sending depth, frameremain" + frame.remaining());
+            ComboJpegProvider comboJpegProvider = new ComboJpegProvider();
+            d.startVideo(comboJpegProvider::receiveVideo);
+            d.startDepth(comboJpegProvider::receiveDepth);
+            Thread.sleep(1000);
 
-                byte[] frameArray = new byte[frame.remaining()];
-                frame.get(frameArray);
-                out.write(frameArray);
-                System.out.println("flushing");
-                out.flush();
-            }catch(Exception e){
-                System.out.println("Exception " + e.getMessage());
-            }
+            MjpegStreamer mjpegStreamer = new MjpegStreamer();
+            mjpegStreamer.stream(socket, comboJpegProvider);
 
-            frame.clear();
+        }
+        catch(Exception e){
+            e.printStackTrace();
         }
     }
-
-    public static void sendRGB(FrameMode mode, ByteBuffer frame, int timestamp)
-    {
-        if(out != null && false)
-        {
-            try {
-                System.out.println("Sending rgb");
-                out.write(frame.array());
-                waiting=false;
-            }catch(Exception e){}
-        }
-
-    }
-
-
 }
